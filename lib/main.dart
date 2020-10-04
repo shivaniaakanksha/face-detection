@@ -32,9 +32,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-CameraController _camera;
-dynamic _scanResults;
-
 class FacePage extends StatefulWidget {
   @override
   _FacePageState createState() => _FacePageState();
@@ -42,13 +39,13 @@ class FacePage extends StatefulWidget {
 
 class _FacePageState extends State<FacePage> {
   CameraController _camera;
+  dynamic _scanResults;
   int facesCount;
   File _imageFile;
   List<Face> _faces;
   bool isLoading = false;
   ui.Image _image;
   File jsonFile;
-  dynamic _scanResults;
   var interpreter;
   bool _isDetecting = false;
   CameraLensDirection _direction = CameraLensDirection.front;
@@ -67,6 +64,7 @@ class _FacePageState extends State<FacePage> {
     _initializeCamera();
   }
 
+// function to load model from assets
   Future loadModel() async {
     try {
       final gpuDelegateV2 = tfl.GpuDelegateV2(
@@ -87,6 +85,7 @@ class _FacePageState extends State<FacePage> {
     }
   }
 
+// to initialize camera when app opens and detect the face in real time
   void _initializeCamera() async {
     await loadModel();
     CameraDescription description = await getCamera(_direction);
@@ -149,6 +148,7 @@ class _FacePageState extends State<FacePage> {
     });
   }
 
+// method to call from firebase ml kit
   HandleDetection _getDetectionMethod() {
     final faceDetector = FirebaseVision.instance.faceDetector(
       FaceDetectorOptions(
@@ -223,33 +223,35 @@ class _FacePageState extends State<FacePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildImage(),
-      // isLoading
-      //     ? Center(child: CircularProgressIndicator())
-      //     : (_imageFile == null)
-      //         ? Center(child: Text('No image selected'))
-      //         : Center(
-      //             child: Column(
-      //               mainAxisAlignment: MainAxisAlignment.spaceAround,
-      //               children: [
-      //                 FittedBox(
-      //                   child: SizedBox(
-      //                     width: _image.width.toDouble(),
-      //                     height: _image.height.toDouble(),
-      //                     child: CustomPaint(
-      //                       painter: FacePainter(_image, _faces),
-      //                     ),
-      //                   ),
-      //                 ),
-      //                 facesCount == 0
-      //                     ? Text("No face Detected")
-      //                     : Text(
-      //                         "Face Detected",
-      //                         style: TextStyle(fontSize: 20),
-      //                       )
-      //               ],
-      //             ),
-      //           ),
+      body:
+          //_buildImage(),
+          // isLoading
+          //     ? Center(child: CircularProgressIndicator())
+          //     :
+          (_imageFile == null)
+              ? _buildImage()
+              : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      FittedBox(
+                        child: SizedBox(
+                          width: _image.width.toDouble(),
+                          height: _image.height.toDouble(),
+                          child: CustomPaint(
+                            painter: FacePainter(_image, _faces),
+                          ),
+                        ),
+                      ),
+                      facesCount == 0
+                          ? Text("No face Detected")
+                          : Text(
+                              "Face Detected",
+                              style: TextStyle(fontSize: 20),
+                            )
+                    ],
+                  ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: _getImageAndDetectFaces,
         tooltip: 'Pick Image',
@@ -257,44 +259,46 @@ class _FacePageState extends State<FacePage> {
       ),
     );
   }
-}
 
-Widget _buildImage() {
-  if (_camera == null || !_camera.value.isInitialized) {
-    return Center(
-      child: CircularProgressIndicator(),
+  Widget _buildImage() {
+    if (_camera == null || !_camera.value.isInitialized) {
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    return Container(
+      constraints: const BoxConstraints.expand(),
+      child: _camera == null
+          ? const Center(child: null)
+          : Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                CameraPreview(_camera),
+                _buildResults(),
+              ],
+            ),
     );
   }
 
-  return Container(
-    constraints: const BoxConstraints.expand(),
-    child: _camera == null || !_camera.value.isInitialized
-        ? CircularProgressIndicator()
-        : Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              CameraPreview(_camera),
-              _buildResults(),
-            ],
-          ),
-  );
-}
+  Widget _buildResults() {
+    const Text noResultsText = const Text('');
+    if (_scanResults == null ||
+        _camera == null ||
+        !_camera.value.isInitialized) {
+      return noResultsText;
+    }
+    CustomPainter painter;
 
-Widget _buildResults() {
-  const Text noResultsText = const Text('');
-  if (_scanResults == null || _camera == null || !_camera.value.isInitialized) {
-    return noResultsText;
+    final Size imageSize = Size(
+      _camera.value.previewSize.height,
+      _camera.value.previewSize.width,
+    );
+    painter = FaceDetectorPainter(imageSize, _scanResults);
+    return CustomPaint(
+      painter: painter,
+    );
   }
-  CustomPainter painter;
-
-  final Size imageSize = Size(
-    _camera.value.previewSize.height,
-    _camera.value.previewSize.width,
-  );
-  painter = FaceDetectorPainter(imageSize, _scanResults);
-  return CustomPaint(
-    painter: painter,
-  );
 }
 
 class FacePainter extends CustomPainter {
